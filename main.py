@@ -10,8 +10,14 @@ from tqdm import tqdm
 
 from markdownify import markdownify as md
 
+headers = {
+    'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36'
+}
+
+
 def get_sitemap_url(site_url: str) -> None:
-    resp: requests.Response = requests.get(f"{site_url}/robots.txt")
+    resp: requests.Response = requests.get(f"{site_url}/robots.txt", headers=headers)
     lines = resp.text.splitlines()
     line = list(filter(
         lambda line: re.match(r"^[Ss]itemap:", line),
@@ -21,7 +27,7 @@ def get_sitemap_url(site_url: str) -> None:
 
 
 def sitemap(url: str):
-    resp: requests.Response = requests.get(url)
+    resp: requests.Response = requests.get(url, headers=headers)
     data = ET.fromstring(resp.text)
     for item in data:
         yield item[0].text
@@ -30,7 +36,7 @@ def sitemap(url: str):
 def scrape_recipe(recipe_url: str) -> tuple:
     # We could get the recipe name from the Structured Data,
     # but we're going to use the title instead for brevity.
-    resp: requests.Response = requests.get(recipe_url)
+    resp: requests.Response = requests.get(recipe_url, headers=headers)
     soup: bs4.BeautifulSoup = bs4.BeautifulSoup(resp.text, "lxml")
     title: bs4.Tag | None = soup.select_one('title')
     str_title: str = str(title.text).split("–")[0].rstrip()
@@ -44,7 +50,8 @@ def write_recipe(recipe_name: str, recipe_html: str) -> None:
 
 
 if __name__ == "__main__" :
-    sm_url = get_sitemap_url(sys.argv[1])
+    if len(sys.argv) > 1:
+        sm_url = get_sitemap_url(sys.argv[1])
     for url in tqdm(sitemap(sm_url)):
         name, html = scrape_recipe(url)
         write_recipe(name, html)
